@@ -1,5 +1,6 @@
 from buildtools.commands.base import Command
 from buildtools.config import ProjectConfig
+from buildtools.providers.clang_format import ClangFormatProvider
 from buildtools.providers.cmake import CMakeProvider
 from buildtools.providers.vcpkg import VcpkgProvider
 from buildtools.shell import Shell
@@ -14,17 +15,19 @@ class BootstrapCommand(Command):
 
     def __init__(self, config: ProjectConfig, shell: Shell,
                  venv_mgr: VenvManager, cmake: CMakeProvider,
-                 vcpkg: VcpkgProvider):
+                 vcpkg: VcpkgProvider, clang_format: ClangFormatProvider):
         self.config = config
         self.shell = shell
         self.venv_mgr = venv_mgr
         self.cmake = cmake
         self.vcpkg = vcpkg
+        self.clang_format = clang_format
 
     def execute(self) -> None:
         self.venv_mgr.ensure()
         cmake_path = self.cmake.ensure()
         self.vcpkg.ensure()
+        self.clang_format.ensure_config()
 
         print(f"\n=== Configuring ({self.config.build_type}) ===")
         self.shell.run([
@@ -33,7 +36,7 @@ class BootstrapCommand(Command):
             "-S", self.config.project_dir,
         ])
 
-        print(f"\nBootstrap complete.")
+        print("\nBootstrap complete.")
         print(f"  Dependencies : {self.config.deps_dir}")
         print(f"  Virtual env  : {self.config.venv_dir}")
         flag = " --release" if self.config.release else ""

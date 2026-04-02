@@ -8,13 +8,19 @@ from buildtools.commands import (
     CleanCommand,
     Command,
     CompileCommand,
+    FormatCommand,
     HelpCommand,
     PackageCommand,
     RunCommand,
 )
 from buildtools.config import ProjectConfig
 from buildtools.errors import BuildError, ToolNotFoundError
-from buildtools.providers import CMakeProvider, GitProvider, VcpkgProvider
+from buildtools.providers import (
+    CMakeProvider,
+    ClangFormatProvider,
+    GitProvider,
+    VcpkgProvider,
+)
 from buildtools.shell import Shell
 from buildtools.venv_manager import VenvManager
 
@@ -29,15 +35,23 @@ class CommandRegistry:
         self._git = GitProvider(self.shell)
         self._cmake = CMakeProvider(self.shell, self._venv_mgr)
         self._vcpkg = VcpkgProvider(self.shell, config, self._git)
+        self._clang_format = ClangFormatProvider(
+            self.shell, self._venv_mgr, config.project_dir,
+        )
 
     def build(self) -> dict[str, Command]:
         commands: dict[str, Command] = {
             "bootstrap": BootstrapCommand(
                 self.config, self.shell,
                 self._venv_mgr, self._cmake, self._vcpkg,
+                self._clang_format,
             ),
             "compile": CompileCommand(
                 self.config, self.shell, self._cmake,
+                self._clang_format,
+            ),
+            "format": FormatCommand(
+                self.config, self.shell, self._clang_format,
             ),
             "run": RunCommand(self.config),
             "package": PackageCommand(self.config, self.shell),
@@ -101,6 +115,12 @@ class CLI:
             "package", parents=[help_parser],
             add_help=False,
             help="Create installer (Inno Setup)",
+        )
+
+        subs.add_parser(
+            "format", parents=[help_parser],
+            add_help=False,
+            help="Auto-format C++ source files",
         )
 
         subs.add_parser(

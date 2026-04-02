@@ -85,4 +85,7 @@ build/
 /staging/
 /dist/
 /.claude/
+/ai_context/
+.vscode/
+.clang-format
 CMakeUserPresets.json

@@ -51,3 +51,5 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: no
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
+Type: filesandordirs; Name: "{userappdata}\{#MyAppName}"
+Type: filesandordirs; Name: "{localappdata}\{#MyAppName}"
