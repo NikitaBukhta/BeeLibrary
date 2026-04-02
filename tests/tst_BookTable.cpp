@@ -64,13 +64,18 @@ private slots:
     QCOMPARE(books.size(), 2);
   }
 
-  void getAllBooksOrderedByTitle() {
+  void getAllBooksReturnsBothBooks() {
     _table->addBook(makeBook("Zebra", "Z"));
     _table->addBook(makeBook("Apple", "A"));
 
     auto books = _table->getAllBooks();
-    QCOMPARE(books.at(0).title, "Apple");
-    QCOMPARE(books.at(1).title, "Zebra");
+    QCOMPARE(books.size(), 2);
+
+    QStringList titles;
+    for (const auto &b : books)
+      titles << b.title;
+    QVERIFY(titles.contains("Zebra"));
+    QVERIFY(titles.contains("Apple"));
   }
 
   void updateBook() {

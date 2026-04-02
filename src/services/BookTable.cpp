@@ -16,9 +16,7 @@ QList<BookDTO> BookTable::getAllBooks() {
   core::SqlQueryBuilder query;
   QString error;
 
-  query.select({"id", "title", "author", "year", "isbn"})
-      .from(kTableName)
-      .orderBy("title");
+  query.select({"id", "title", "author", "year", "isbn"}).from(kTableName);
 
   auto data = _db->select(query, &error);
 

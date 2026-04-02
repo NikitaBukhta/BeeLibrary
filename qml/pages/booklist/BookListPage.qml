@@ -31,9 +31,19 @@ PageTemplate {
             }
         }
 
-        SearchBar {
+        RowLayout {
             Layout.fillWidth: true
-            onSearchTextChanged: (text) => bookProxyModel.searchQuery = text
+            spacing: Geometry.spacingMedium
+
+            SearchBar {
+                Layout.fillWidth: true
+                onSearchTextChanged: (text) => bookProxyModel.searchQuery = text
+            }
+
+            SortBar {
+                onSortFieldChanged: (role) => bookProxyModel.sortField = role
+                onSortDescendingChanged: (desc) => bookProxyModel.sortDescending = desc
+            }
         }
 
         ErrorBanner {

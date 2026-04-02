@@ -3,7 +3,10 @@
 namespace bl::models {
 
 BookProxyModel::BookProxyModel(QObject *parent)
-    : QSortFilterProxyModel(parent) {}
+    : QSortFilterProxyModel(parent) {
+  setSortRole(BookListModel::TitleRole);
+  sort(0);
+}
 
 QString BookProxyModel::searchQuery() const { return _searchQuery; }
 
@@ -14,6 +17,28 @@ void BookProxyModel::setSearchQuery(const QString &query) {
   _searchQuery = query;
   emit searchQueryChanged();
   invalidateFilter();
+}
+
+void BookProxyModel::setSortField(int role) {
+  if (sortRole() == role)
+    return;
+
+  setSortRole(role);
+  invalidate();
+  emit sortFieldChanged();
+}
+
+bool BookProxyModel::sortDescending() const {
+  return sortOrder() == Qt::DescendingOrder;
+}
+
+void BookProxyModel::setSortDescending(bool descending) {
+  auto order = descending ? Qt::DescendingOrder : Qt::AscendingOrder;
+  if (sortOrder() == order)
+    return;
+
+  sort(0, order);
+  emit sortDescendingChanged();
 }
 
 bool BookProxyModel::filterAcceptsRow(int sourceRow,
@@ -31,6 +56,18 @@ bool BookProxyModel::filterAcceptsRow(int sourceRow,
   return title.contains(_searchQuery, Qt::CaseInsensitive) ||
          author.contains(_searchQuery, Qt::CaseInsensitive) ||
          isbn.contains(_searchQuery, Qt::CaseInsensitive);
+}
+
+bool BookProxyModel::lessThan(const QModelIndex &left,
+                              const QModelIndex &right) const {
+  QVariant leftData = sourceModel()->data(left, sortRole());
+  QVariant rightData = sourceModel()->data(right, sortRole());
+
+  if (sortRole() == BookListModel::YearRole)
+    return leftData.toInt() < rightData.toInt();
+
+  return QString::localeAwareCompare(leftData.toString(),
+                                     rightData.toString()) < 0;
 }
 
 } // namespace bl::models
