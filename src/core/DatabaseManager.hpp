@@ -3,7 +3,6 @@
 
 #include "SqlQueryBuilder.hpp"
 
-#include <QCoreApplication>
 #include <QString>
 #include <QtSql/QSqlDatabase>
 
@@ -11,24 +10,31 @@ namespace bl::core {
 
 class DatabaseManager {
 public:
-  DatabaseManager(const QString &dbName);
+  explicit DatabaseManager(const QString &dbName);
   ~DatabaseManager();
+
+  DatabaseManager(const DatabaseManager &) = delete;
+  DatabaseManager &operator=(const DatabaseManager &) = delete;
 
   bool open();
   void close();
   bool runScript(const QString &scriptFileName);
-  bool runQuery(const QString &sqlQuery, QString *error = nullptr);
-  QList<QVariantMap> runQuery(const SqlQueryBuilder &sqlQuery,
-                              QString *error = nullptr);
-  qint64 lastInsertedID() const;
+
+  QList<QVariantMap> select(const SqlQueryBuilder &query,
+                            QString *error = nullptr);
+  int execute(const SqlQueryBuilder &query, QString *error = nullptr);
+  qint64 insert(const SqlQueryBuilder &query, QString *error = nullptr);
 
 private:
+  bool exec(const QString &sql, QString *error = nullptr);
+  bool execPrepared(QSqlQuery &query, const SqlQueryBuilder &builder,
+                    QString *error);
   void trimRun(QTextStream &script);
   QList<QVariantMap> getDataFromQuery(QSqlQuery &query);
 
-private:
+  static constexpr const char *kConnectionName = "BeeLibrary";
+
   QSqlDatabase _db;
-  qint64 _lastInsertedID;
 };
 
 } // namespace bl::core

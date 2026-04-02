@@ -3,6 +3,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QLoggingCategory>
 #include <QMutex>
 #include <QMutexLocker>
@@ -19,8 +20,6 @@ static QMutex s_logMutex;
 QString AppEnvironment::ensureDataDir() {
   QString path =
       QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-  // AppDataLocation already appends the app name on Windows
-  // (%APPDATA%/<AppName>). We override it to always use "BeeLibrary".
   QDir dir(path);
   dir.cdUp();
   path = dir.absoluteFilePath("BeeLibrary");
@@ -38,11 +37,13 @@ QString AppEnvironment::databasePath() { return dataPath() + "/beelibrary.db"; }
 
 QString AppEnvironment::logFilePath() {
   const QString timestamp =
-      QDateTime::currentDateTime().toString("dd.MM.yyyy-hh:mm:ss");
+      QDateTime::currentDateTime().toString("dd.MM.yyyy-hh.mm.ss");
   return dataPath() + "/log_" + timestamp + ".log";
 }
 
 void AppEnvironment::installFileLogger() {
+  cleanupOldLogs();
+
   const QString path = logFilePath();
 
   s_logFile = new QFile(path);
@@ -55,6 +56,32 @@ void AppEnvironment::installFileLogger() {
   }
 
   qInstallMessageHandler(messageHandler);
+}
+
+void AppEnvironment::shutdownFileLogger() {
+  qInstallMessageHandler(nullptr);
+
+  QMutexLocker locker(&s_logMutex);
+  if (s_logFile) {
+    s_logFile->flush();
+    s_logFile->close();
+    delete s_logFile;
+    s_logFile = nullptr;
+  }
+}
+
+void AppEnvironment::cleanupOldLogs(int keepDays) {
+  QDir dir(dataPath());
+  const QDateTime cutoff = QDateTime::currentDateTime().addDays(-keepDays);
+
+  const auto entries =
+      dir.entryInfoList({"log_*.log"}, QDir::Files, QDir::Time);
+  for (const QFileInfo &info : entries) {
+    if (info.lastModified() < cutoff) {
+      if (QFile::remove(info.absoluteFilePath()))
+        qCInfo(lcAppEnv) << "Removed old log:" << info.fileName();
+    }
+  }
 }
 
 void AppEnvironment::messageHandler(QtMsgType type,
@@ -93,6 +120,10 @@ void AppEnvironment::messageHandler(QtMsgType type,
   QTextStream stream(s_logFile);
   stream << line;
   stream.flush();
+
+#ifndef QT_NO_DEBUG
+  fprintf(stderr, "%s", line.toLocal8Bit().constData());
+#endif
 }
 
 } // namespace bl::core

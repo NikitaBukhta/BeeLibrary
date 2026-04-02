@@ -14,11 +14,9 @@ struct BookDTO {
   QString author;
   int year = 0;
   QString isbn;
-};
 
-class BookDTOMapper {
-public:
-  BookDTO map(const QMap<QString, QVariant> &data);
+  QVariantMap toMap() const;
+  static BookDTO fromMap(const QVariantMap &data);
 };
 
 } // namespace bl::services

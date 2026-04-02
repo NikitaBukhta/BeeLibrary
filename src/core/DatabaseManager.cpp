@@ -11,15 +11,17 @@ Q_LOGGING_CATEGORY(lcDb, "bl.core.db")
 
 namespace bl::core {
 
-DatabaseManager::DatabaseManager(const QString &dbName) : _lastInsertedID{0} {
-  static const QString dbDriverName = "QSQLITE";
-
-  _db = QSqlDatabase::addDatabase(dbDriverName);
+DatabaseManager::DatabaseManager(const QString &dbName) {
+  _db = QSqlDatabase::addDatabase("QSQLITE", kConnectionName);
   _db.setDatabaseName(dbName);
   qCInfo(lcDb) << "Database configured:" << dbName;
 }
 
-DatabaseManager::~DatabaseManager() { close(); }
+DatabaseManager::~DatabaseManager() {
+  close();
+  _db = QSqlDatabase{};
+  QSqlDatabase::removeDatabase(kConnectionName);
+}
 
 bool DatabaseManager::open() {
   if (_db.open()) {
@@ -51,112 +53,131 @@ bool DatabaseManager::runScript(const QString &scriptFileName) {
   QTextStream script(&file);
   trimRun(script);
 
-  file.close();
-
   return true;
 }
 
-bool DatabaseManager::runQuery(const QString &sqlQuery, QString *error) {
+QList<QVariantMap> DatabaseManager::select(const SqlQueryBuilder &builder,
+                                           QString *error) {
   QSqlQuery query{_db};
-  if (!_db.transaction()) {
-    qCWarning(lcDb) << "Failed to begin transaction:" << _db.lastError().text();
-    if (error) {
-      *error = _db.lastError().text();
-    }
-    return false;
-  }
 
-  bool ret = query.exec(sqlQuery);
-
-  if (ret) {
-    _db.commit();
-  } else {
-    qCWarning(lcDb) << "Query failed:" << query.lastError().text();
-    if (error) {
-      *error = query.lastError().text();
-    }
-
-    _db.rollback();
-  }
-
-  return ret;
-}
-
-QList<QVariantMap> DatabaseManager::runQuery(const SqlQueryBuilder &sqlQuery,
-                                             QString *error) {
-  QSqlQuery query{_db};
-  if (!_db.transaction()) {
-    qCWarning(lcDb) << "Failed to begin transaction:" << _db.lastError().text();
-    if (error) {
-      *error = _db.lastError().text();
-    }
+  if (!execPrepared(query, builder, error))
     return {};
-  }
-
-  auto params = sqlQuery.getValues();
-  QString sql = sqlQuery.build();
-
-  if (!query.prepare(sql)) {
-    qCWarning(lcDb) << "Prepare failed:" << query.lastError().text()
-                    << "sql:" << sql;
-    if (error) {
-      *error = query.lastError().text();
-    }
-    _db.rollback();
-    return {};
-  }
-
-  for (const auto &param : params) {
-    query.addBindValue(param);
-  }
-
-  qCDebug(lcDb) << "Executing:" << sql << "params:" << params;
-
-  if (query.exec()) {
-    _db.commit();
-  } else {
-    qCWarning(lcDb) << "Query failed:" << query.lastError().text();
-    if (error) {
-      *error = query.lastError().text();
-    }
-
-    _db.rollback();
-  }
-
-  auto lastInsertedID = query.lastInsertId();
-  _lastInsertedID = lastInsertedID.isValid() ? lastInsertedID.toLongLong() : 0;
 
   return getDataFromQuery(query);
 }
 
-qint64 DatabaseManager::lastInsertedID() const { return _lastInsertedID; }
+int DatabaseManager::execute(const SqlQueryBuilder &builder, QString *error) {
+  QSqlQuery query{_db};
+
+  if (!_db.transaction()) {
+    qCWarning(lcDb) << "Failed to begin transaction:" << _db.lastError().text();
+    if (error)
+      *error = _db.lastError().text();
+    return -1;
+  }
+
+  if (!execPrepared(query, builder, error)) {
+    _db.rollback();
+    return -1;
+  }
+
+  _db.commit();
+  return query.numRowsAffected();
+}
+
+qint64 DatabaseManager::insert(const SqlQueryBuilder &builder, QString *error) {
+  QSqlQuery query{_db};
+
+  if (!_db.transaction()) {
+    qCWarning(lcDb) << "Failed to begin transaction:" << _db.lastError().text();
+    if (error)
+      *error = _db.lastError().text();
+    return -1;
+  }
+
+  if (!execPrepared(query, builder, error)) {
+    _db.rollback();
+    return -1;
+  }
+
+  _db.commit();
+
+  auto lastId = query.lastInsertId();
+  return lastId.isValid() ? lastId.toLongLong() : 0;
+}
+
+bool DatabaseManager::exec(const QString &sql, QString *error) {
+  QSqlQuery query{_db};
+
+  if (!_db.transaction()) {
+    qCWarning(lcDb) << "Failed to begin transaction:" << _db.lastError().text();
+    if (error)
+      *error = _db.lastError().text();
+    return false;
+  }
+
+  if (!query.exec(sql)) {
+    qCWarning(lcDb) << "Query failed:" << query.lastError().text();
+    if (error)
+      *error = query.lastError().text();
+    _db.rollback();
+    return false;
+  }
+
+  _db.commit();
+  return true;
+}
+
+bool DatabaseManager::execPrepared(QSqlQuery &query,
+                                   const SqlQueryBuilder &builder,
+                                   QString *error) {
+  const auto &params = builder.getValues();
+  QString sql = builder.build();
+
+  if (!query.prepare(sql)) {
+    qCWarning(lcDb) << "Prepare failed:" << query.lastError().text()
+                    << "sql:" << sql;
+    if (error)
+      *error = query.lastError().text();
+    return false;
+  }
+
+  for (const auto &param : params)
+    query.addBindValue(param);
+
+  qCDebug(lcDb) << "Executing:" << sql << "params:" << params;
+
+  if (!query.exec()) {
+    qCWarning(lcDb) << "Query failed:" << query.lastError().text();
+    if (error)
+      *error = query.lastError().text();
+    return false;
+  }
+
+  return true;
+}
 
 void DatabaseManager::trimRun(QTextStream &script) {
   QString currentCommand;
 
   while (!script.atEnd()) {
     QString line = script.readLine();
-    if (line.isEmpty() || line.startsWith("--")) {
+    if (line.isEmpty() || line.startsWith("--"))
       continue;
-    }
 
     if (line.startsWith(" ")) {
       auto trimmedLine = line.trimmed();
       auto endIndex = trimmedLine.indexOf("--");
-      if (endIndex != -1) {
+      if (endIndex != -1)
         currentCommand += trimmedLine.left(endIndex) + " ";
-      } else {
+      else
         currentCommand += trimmedLine + " ";
-      }
-
     } else {
       currentCommand += line + " ";
       if (line.trimmed().endsWith(";")) {
         QString error;
-        if (!runQuery(currentCommand, &error)) {
+        if (!exec(currentCommand, &error))
           qCWarning(lcDb) << "Script statement failed:" << error;
-        }
-
         currentCommand.clear();
       }
     }
@@ -165,21 +186,17 @@ void DatabaseManager::trimRun(QTextStream &script) {
 
 QList<QVariantMap> DatabaseManager::getDataFromQuery(QSqlQuery &query) {
   QList<QVariantMap> ret;
-  query.record();
+  const QSqlRecord schema = query.record();
+  const int fieldCount = schema.count();
 
   while (query.next()) {
-    QSqlRecord record = query.record();
     QVariantMap row;
-    for (int i = 0; i < record.count(); ++i) {
-      QString columnName = query.record().fieldName(i);
-      row[columnName] = query.value(i);
-    }
-
-    ret.append(std::move(row));
+    for (int i = 0; i < fieldCount; ++i)
+      row.insert(schema.fieldName(i), query.value(i));
+    ret.emplaceBack(std::move(row));
   }
 
   qCDebug(lcDb) << "Query returned" << ret.size() << "rows";
-
   return ret;
 }
 

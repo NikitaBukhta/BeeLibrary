@@ -13,11 +13,16 @@ RowLayout {
         placeholderText: qsTr("Search by title, author, or ISBN...")
 
         onTextChanged: debounceTimer.restart()
+
+        onEditingFinished: {
+            debounceTimer.stop()
+            root.searchTextChanged(text)
+        }
     }
 
     Timer {
         id: debounceTimer
-        interval: Geometry.searchBar.debounceMs
+        interval: Geometry.debounceMs
         onTriggered: root.searchTextChanged(searchField.text)
     }
 }

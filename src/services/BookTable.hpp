@@ -11,16 +11,16 @@ namespace bl::services {
 
 class BookTable {
 public:
-  BookTable(std::weak_ptr<core::DatabaseManager> db);
+  explicit BookTable(std::shared_ptr<core::DatabaseManager> db);
 
-  void getAllBooks(QList<BookDTO> &out);
+  QList<BookDTO> getAllBooks();
   qint64 addBook(const BookDTO &book);
   bool updateBook(const BookDTO &book);
   bool deleteBook(qint64 id);
   bool isbnExists(const QString &isbn, qint64 excludeId = 0);
 
 private:
-  static const QString _tableName;
+  static const QString kTableName;
   std::shared_ptr<core::DatabaseManager> _db;
 };
 

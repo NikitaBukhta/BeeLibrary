@@ -49,67 +49,14 @@ QHash<int, QByteArray> BookListModel::roleNames() const {
   };
 }
 
-bool BookListModel::addBook(const QString &title, const QString &author,
-                            int year, const QString &isbn) {
-  if (!validate(title, author, year, isbn))
-    return false;
-
-  services::BookDTO book;
-  book.title = title.trimmed();
-  book.author = author.trimmed();
-  book.year = year;
-  book.isbn = isbn.trimmed();
-
-  qint64 id = _bookTable->addBook(book);
-  if (id <= 0) {
-    _errorMessage = tr("Failed to add book.");
-    emit errorMessageChanged();
-    return false;
-  }
-
-  qCInfo(lcBookModel) << "Book added — id:" << id << "title:" << book.title;
-  _errorMessage.clear();
-  emit errorMessageChanged();
-  refresh();
-  return true;
-}
-
-bool BookListModel::updateBook(int id, const QString &title,
-                               const QString &author, int year,
-                               const QString &isbn) {
-  if (!validate(title, author, year, isbn, id))
-    return false;
-
-  services::BookDTO book;
-  book.id = id;
-  book.title = title.trimmed();
-  book.author = author.trimmed();
-  book.year = year;
-  book.isbn = isbn.trimmed();
-
-  if (!_bookTable->updateBook(book)) {
-    _errorMessage = tr("Failed to update book.");
-    emit errorMessageChanged();
-    return false;
-  }
-
-  qCInfo(lcBookModel) << "Book updated — id:" << id << "title:" << book.title;
-  _errorMessage.clear();
-  emit errorMessageChanged();
-  refresh();
-  return true;
-}
-
 bool BookListModel::deleteBook(int id) {
   if (!_bookTable->deleteBook(id)) {
-    _errorMessage = tr("Failed to delete book.");
-    emit errorMessageChanged();
+    setErrorMessage(tr("Failed to delete book."));
     return false;
   }
 
   qCInfo(lcBookModel) << "Book deleted — id:" << id;
-  _errorMessage.clear();
-  emit errorMessageChanged();
+  setErrorMessage({});
   refresh();
   return true;
 }
@@ -117,58 +64,26 @@ bool BookListModel::deleteBook(int id) {
 QVariantMap BookListModel::getBook(int id) const {
   for (const auto &book : _books) {
     if (book.id == id) {
-      qCDebug(lcBookModel) << "getBook found id:" << id
-                           << "title:" << book.title;
-      return {
-          {"id", book.id},     {"title", book.title}, {"author", book.author},
-          {"year", book.year}, {"isbn", book.isbn},
-      };
+      return book.toMap();
     }
   }
   qCWarning(lcBookModel) << "getBook — book not found, id:" << id;
   return {};
 }
 
-QString BookListModel::errorMessage() const { return _errorMessage; }
-
 void BookListModel::refresh() {
   beginResetModel();
-  _bookTable->getAllBooks(_books);
+  _books = _bookTable->getAllBooks();
   endResetModel();
 }
 
-bool BookListModel::validate(const QString &title, const QString &author,
-                             int year, const QString &isbn, qint64 excludeId) {
-  if (title.trimmed().isEmpty()) {
-    qCWarning(lcBookModel) << "Validation failed: title is empty";
-    _errorMessage = tr("Title is required.");
-    emit errorMessageChanged();
-    return false;
-  }
+QString BookListModel::errorMessage() const { return _errorMessage; }
 
-  if (author.trimmed().isEmpty()) {
-    qCWarning(lcBookModel) << "Validation failed: author is empty";
-    _errorMessage = tr("Author is required.");
-    emit errorMessageChanged();
-    return false;
-  }
-
-  if (year != 0 && (year < 1 || year > 9999)) {
-    qCWarning(lcBookModel) << "Validation failed: invalid year" << year;
-    _errorMessage = tr("Year must be between 1 and 9999.");
-    emit errorMessageChanged();
-    return false;
-  }
-
-  if (!isbn.trimmed().isEmpty() &&
-      _bookTable->isbnExists(isbn.trimmed(), excludeId)) {
-    qCWarning(lcBookModel) << "Validation failed: ISBN already exists:" << isbn;
-    _errorMessage = tr("A book with this ISBN already exists.");
-    emit errorMessageChanged();
-    return false;
-  }
-
-  return true;
+void BookListModel::setErrorMessage(const QString &message) {
+  if (_errorMessage == message)
+    return;
+  _errorMessage = message;
+  emit errorMessageChanged();
 }
 
 } // namespace bl::models

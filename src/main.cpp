@@ -3,7 +3,6 @@
 
 #include <QGuiApplication>
 #include <QLoggingCategory>
-#include <QQmlApplicationEngine>
 
 int main(int argc, char *argv[]) {
   QGuiApplication app(argc, argv);
@@ -11,18 +10,10 @@ int main(int argc, char *argv[]) {
   bl::core::AppEnvironment::installFileLogger();
 
 #ifdef QT_NO_DEBUG
-  QLoggingCategory::setFilterRules("bl.*=false");
+  QLoggingCategory::setFilterRules("bl.*.debug=false\n"
+                                   "bl.*.info=false");
 #endif
 
-  QQmlApplicationEngine engine;
-  QObject::connect(
-      &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
-      []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
-
-  bl::core::AppInitializer initializer(engine);
-  initializer.initialize();
-
-  engine.loadFromModule("Library", "Main");
-
-  return app.exec();
+  bl::core::AppInitializer initializer(app);
+  return initializer.run();
 }

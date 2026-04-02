@@ -13,7 +13,7 @@ qt_standard_project_setup(REQUIRES 6.8)
 # ---------------------------------------------------------------------------
 # Sources
 # ---------------------------------------------------------------------------
-file(GLOB_RECURSE CPP_SOURCES CONFIGURE_DEPENDS src/*.cpp src/*.h)
+file(GLOB_RECURSE CPP_SOURCES CONFIGURE_DEPENDS src/*.cpp src/*.hpp)
 
 qt_add_executable(BeeLibrary ${CPP_SOURCES})
 
@@ -46,7 +46,7 @@ set_target_properties(BeeLibrary PROPERTIES
     WIN32_EXECUTABLE $<NOT:$<CONFIG:Debug>>
 )
 
-target_include_directories(BeeLibrary PRIVATE src)
+target_include_directories(BeeLibrary PRIVATE src src/models src/controllers src/core src/services)
 
 target_link_libraries(BeeLibrary
     PRIVATE Qt6::Quick Qt6::Sql

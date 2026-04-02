@@ -1,23 +1,42 @@
 #include "AppInitializer.hpp"
 #include "AppEnvironment.hpp"
+#include "DatabaseManager.hpp"
+#include "controllers/BookFormController.hpp"
+#include "controllers/ContextModel.hpp"
+#include "models/BookListModel.hpp"
+#include "models/BookProxyModel.hpp"
 
 #include <QLoggingCategory>
+#include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QtQml>
 
 Q_LOGGING_CATEGORY(lcInit, "bl.core.init")
 
 namespace bl::core {
 
-AppInitializer::AppInitializer(QQmlApplicationEngine &engine)
-    : _engine{engine} {}
+AppInitializer::AppInitializer(QGuiApplication &app, QObject *parent)
+    : QObject(parent), _app{app},
+      _engine{std::make_unique<QQmlApplicationEngine>()},
+      _bookListModel{nullptr}, _bookProxyModel{nullptr},
+      _bookFormController{nullptr}, _contextModel{nullptr} {}
 
-void AppInitializer::initialize() {
+AppInitializer::~AppInitializer() = default;
+
+int AppInitializer::run() {
+  init();
+  int res = _app.exec();
+  _engine.reset();
+  AppEnvironment::shutdownFileLogger();
+  return res;
+}
+
+void AppInitializer::init() {
   qCInfo(lcInit) << "Initializing application...";
 
   initDatabase();
   initModels();
   registerQmlTypes();
-  exposeToQml();
 
   qCInfo(lcInit) << "Application initialized";
 }
@@ -26,7 +45,10 @@ void AppInitializer::initDatabase() {
   _db = std::make_shared<DatabaseManager>(AppEnvironment::databasePath());
   _db->open();
   _db->runScript(":/db/init.sql");
+
+#ifndef QT_NO_DEBUG
   _db->runScript(":/db/test_data.sql");
+#endif
 
   _bookTable = std::make_shared<services::BookTable>(_db);
 
@@ -34,29 +56,42 @@ void AppInitializer::initDatabase() {
 }
 
 void AppInitializer::initModels() {
-  _bookListModel = std::make_unique<models::BookListModel>(_bookTable);
+  _bookListModel = new models::BookListModel(_bookTable, this);
 
-  _bookProxyModel = std::make_unique<models::BookProxyModel>();
-  _bookProxyModel->setSourceModel(_bookListModel.get());
+  _bookProxyModel = new models::BookProxyModel(this);
+  _bookProxyModel->setSourceModel(_bookListModel);
 
-  _contextModel = std::make_unique<models::ContextModel>();
+  _bookFormController =
+      new controllers::BookFormController(_bookTable, _bookListModel, this);
+  connect(_bookFormController, &controllers::BookFormController::bookSaved,
+          _bookListModel, &models::BookListModel::refresh);
+
+  _contextModel = new controllers::ContextModel(this);
 
   qCInfo(lcInit) << "Models ready";
 }
 
 void AppInitializer::registerQmlTypes() {
-  qmlRegisterUncreatableType<models::ContextModel>(
-      "Library", 1, 0, "ContextModel",
-      "ContextModel is not creatable — enums only");
-}
+  _engine->rootContext()->setContextProperty("bookListModel", _bookListModel);
+  qmlRegisterUncreatableType<models::BookListModel>("Library", 1, 0,
+                                                    "BookListModel", "");
 
-void AppInitializer::exposeToQml() {
-  auto *ctx = _engine.rootContext();
-  ctx->setContextProperty("bookListModel", _bookListModel.get());
-  ctx->setContextProperty("bookProxyModel", _bookProxyModel.get());
-  ctx->setContextProperty("contextModel", _contextModel.get());
+  _engine->rootContext()->setContextProperty("bookProxyModel", _bookProxyModel);
 
-  qCInfo(lcInit) << "QML context properties registered";
+  _engine->rootContext()->setContextProperty("bookFormController",
+                                             _bookFormController);
+
+  _engine->rootContext()->setContextProperty("contextModel", _contextModel);
+  qmlRegisterUncreatableType<controllers::ContextModel>("Library", 1, 0,
+                                                        "ContextModel", "");
+
+  QObject::connect(
+      _engine.get(), &QQmlApplicationEngine::objectCreationFailed, &_app,
+      []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
+
+  _engine->loadFromModule("Library", "Main");
+
+  qCInfo(lcInit) << "QML types registered";
 }
 
 } // namespace bl::core

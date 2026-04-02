@@ -5,56 +5,57 @@ import QtQuick.Layouts
 ItemDelegate {
     id: root
 
-    property int bookId: -1
-    property string title
-    property string author
-    property int year: 0
-    property string isbn
+    required property int bookId
+    required property string title
+    required property string author
+    required property int year
+    required property string isbn
 
     signal editClicked()
     signal deleteClicked()
 
     width: ListView.view ? ListView.view.width : implicitWidth
-    padding: Geometry.bookCard.padding
+    padding: Geometry.spacingLarge
 
     contentItem: RowLayout {
-        spacing: Geometry.bookCard.spacing
+        spacing: Geometry.spacingLarge
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: Geometry.bookCard.innerSpacing
+            spacing: Geometry.spacingSmall
 
             Label {
                 text: root.title
                 font.bold: true
-                font.pixelSize: Geometry.bookCard.titleFontSize
+                font.pixelSize: Geometry.fontSize.bodyLarge
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
 
             Label {
                 text: root.author
-                font.pixelSize: Geometry.bookCard.authorFontSize
-                opacity: Geometry.bookCard.authorOpacity
+                font.pixelSize: Geometry.fontSize.bodyMedium
+                opacity: Styles.secondaryOpacity
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
 
             RowLayout {
-                spacing: Geometry.bookCard.metaSpacing
+                spacing: Geometry.spacingXL
 
-                Label {
-                    text: root.year > 0 ? root.year.toString() : ""
-                    visible: root.year > 0
-                    font.pixelSize: Geometry.bookCard.metaFontSize
-                    opacity: Geometry.bookCard.metaOpacity
+                component MetaLabel: Label {
+                    font.pixelSize: Geometry.fontSize.labelSmall
+                    opacity: Styles.mutedOpacity
                 }
 
-                Label {
+                MetaLabel {
+                    text: root.year > 0 ? root.year.toString() : ""
+                    visible: root.year > 0
+                }
+
+                MetaLabel {
                     text: root.isbn
                     visible: root.isbn.length > 0
-                    font.pixelSize: Geometry.bookCard.metaFontSize
-                    opacity: Geometry.bookCard.metaOpacity
                 }
             }
         }

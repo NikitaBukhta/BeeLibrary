@@ -13,7 +13,7 @@ SqlQueryBuilder &SqlQueryBuilder::select(const QStringList &columns) {
 }
 
 SqlQueryBuilder &SqlQueryBuilder::selectCount() {
-  _query += "SELECT COUNT(*)";
+  _query = "SELECT COUNT(*)";
   return *this;
 }
 
@@ -32,7 +32,9 @@ SqlQueryBuilder &SqlQueryBuilder::update(const QString &table) {
 
 SqlQueryBuilder &SqlQueryBuilder::from(const QString &table,
                                        const QString &alias) {
-  _query += " FROM " + table + " " + alias;
+  _query += " FROM " + table;
+  if (!alias.isEmpty())
+    _query += " " + alias;
   return *this;
 }
 
@@ -53,12 +55,20 @@ SqlQueryBuilder &SqlQueryBuilder::set(const QStringList &columns) {
 
 SqlQueryBuilder &SqlQueryBuilder::leftJoin(const QString &table,
                                            const QString &alias) {
-  _query += " LEFT JOIN " + table + " " + alias;
+  _query += " LEFT JOIN " + table;
+  if (!alias.isEmpty())
+    _query += " " + alias;
   return *this;
 }
 
 SqlQueryBuilder &SqlQueryBuilder::on(const QString &condition) {
   _query += " ON " + condition;
+  return *this;
+}
+
+SqlQueryBuilder &SqlQueryBuilder::orderBy(const QString &column,
+                                          const QString &order) {
+  _query += " ORDER BY " + column + " " + order;
   return *this;
 }
 

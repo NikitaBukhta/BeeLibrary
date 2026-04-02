@@ -28,31 +28,22 @@ public:
   explicit BookListModel(std::shared_ptr<services::BookTable> bookTable,
                          QObject *parent = nullptr);
 
-  // QAbstractListModel interface
   int rowCount(const QModelIndex &parent = QModelIndex()) const override;
   QVariant data(const QModelIndex &index,
                 int role = Qt::DisplayRole) const override;
   QHash<int, QByteArray> roleNames() const override;
 
-  // CRUD operations invokable from QML
-  Q_INVOKABLE bool addBook(const QString &title, const QString &author,
-                           int year, const QString &isbn);
-  Q_INVOKABLE bool updateBook(int id, const QString &title,
-                              const QString &author, int year,
-                              const QString &isbn);
   Q_INVOKABLE bool deleteBook(int id);
-  Q_INVOKABLE QVariantMap getBook(int id) const;
 
-  // Error
+  QVariantMap getBook(int id) const;
+  void refresh();
   QString errorMessage() const;
 
 signals:
   void errorMessageChanged();
 
 private:
-  void refresh();
-  bool validate(const QString &title, const QString &author, int year,
-                const QString &isbn, qint64 excludeId = 0);
+  void setErrorMessage(const QString &message);
 
   QList<services::BookDTO> _books;
   std::shared_ptr<services::BookTable> _bookTable;

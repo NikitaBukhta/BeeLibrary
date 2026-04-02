@@ -1,36 +1,54 @@
 #ifndef BEELIBRARY_CORE_APPINITIALIZER_HPP
 #define BEELIBRARY_CORE_APPINITIALIZER_HPP
 
-#include "DatabaseManager.hpp"
-#include "models/BookListModel.hpp"
-#include "models/BookProxyModel.hpp"
-#include "models/ContextModel.hpp"
-#include "services/BookTable.hpp"
-
-#include <QQmlApplicationEngine>
+#include <QGuiApplication>
+#include <QObject>
 #include <memory>
+
+class QQmlApplicationEngine;
+
+namespace bl::services {
+class BookTable;
+}
+
+namespace bl::models {
+class BookListModel;
+class BookProxyModel;
+} // namespace bl::models
+
+namespace bl::controllers {
+class BookFormController;
+class ContextModel;
+} // namespace bl::controllers
 
 namespace bl::core {
 
-class AppInitializer {
-public:
-  explicit AppInitializer(QQmlApplicationEngine &engine);
+class DatabaseManager;
 
-  void initialize();
+class AppInitializer : public QObject {
+  Q_OBJECT
+
+public:
+  explicit AppInitializer(QGuiApplication &app, QObject *parent = nullptr);
+  ~AppInitializer() override;
+
+  int run();
 
 private:
+  void init();
   void initDatabase();
   void initModels();
   void registerQmlTypes();
-  void exposeToQml();
 
-  QQmlApplicationEngine &_engine;
+  QGuiApplication &_app;
+  std::unique_ptr<QQmlApplicationEngine> _engine;
 
   std::shared_ptr<DatabaseManager> _db;
   std::shared_ptr<services::BookTable> _bookTable;
-  std::unique_ptr<models::BookListModel> _bookListModel;
-  std::unique_ptr<models::BookProxyModel> _bookProxyModel;
-  std::unique_ptr<models::ContextModel> _contextModel;
+  models::BookListModel *_bookListModel;
+  models::BookProxyModel *_bookProxyModel;
+  controllers::BookFormController *_bookFormController;
+  controllers::ContextModel *_contextModel;
 };
 
 } // namespace bl::core

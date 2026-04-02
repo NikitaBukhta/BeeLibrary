@@ -19,6 +19,7 @@ public:
   SqlQueryBuilder &set(const QStringList &columns);
   SqlQueryBuilder &leftJoin(const QString &table, const QString &alias = "");
   SqlQueryBuilder &on(const QString &condition);
+  SqlQueryBuilder &orderBy(const QString &column, const QString &order = "ASC");
   SqlQueryBuilder &values(const QVariantList &values);
   SqlQueryBuilder &values(QVariantList &&values);
 
