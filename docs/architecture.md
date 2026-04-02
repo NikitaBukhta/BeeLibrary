@@ -2,7 +2,7 @@
 
 ## Overview
 
-BeeLibrary is a Qt 6.8 QML desktop application built with C++17. The project follows a layered architecture separating business logic (C++) from presentation (QML).
+BeeLibrary is a Qt 6.8 QML desktop application built with C++17. The project follows an MVC architecture separating business logic (C++) from presentation (QML).
 
 ## Tech Stack
 
@@ -12,6 +12,7 @@ BeeLibrary is a Qt 6.8 QML desktop application built with C++17. The project fol
 | Application    | C++17, Qt 6.8             |
 | Database       | SQLite (Qt SQL)           |
 | Build          | CMake 3.16+, vcpkg        |
+| Tests          | Qt Test                   |
 | Packaging      | Inno Setup (Windows)      |
 | Build scripts  | Python (bootstrap.py)     |
 
@@ -21,48 +22,58 @@ BeeLibrary is a Qt 6.8 QML desktop application built with C++17. The project fol
 BeeLibrary/
 ├── src/                    C++ source code
 │   ├── main.cpp               Application entry point
-│   ├── core/                  Infrastructure: DB, SQL builder, app init
-│   │   ├── AppInitializer        Startup orchestration
-│   │   ├── AppEnvironment        App paths and file logger
-│   │   ├── DatabaseManager       SQLite connection and queries
+│   ├── core/                  Infrastructure
+│   │   ├── AppInitializer        Startup, DI, QML registration
+│   │   ├── AppEnvironment        Paths, file logger, log rotation
+│   │   ├── DatabaseManager       SQLite: select, execute, insert
 │   │   └── SqlQueryBuilder       Fluent parameterized SQL builder
-│   ├── models/                QAbstractListModel subclasses exposed to QML
-│   │   ├── BookListModel         Book CRUD model (Q_INVOKABLE)
-│   │   ├── BookProxyModel        Search/filter proxy (QSortFilterProxyModel)
-│   │   └── ContextModel          Page navigation with stack
-│   └── services/              Data access and persistence
-│       ├── BookTable             DAO: getAllBooks, addBook, updateBook, deleteBook, isbnExists
-│       └── BookDTO               Data struct + mapper
+│   ├── controllers/           Application logic
+│   │   ├── BookFormController    Form submit, validation, ISBN, yearMin/Max
+│   │   └── NavigationController Stack-based page navigation
+│   ├── models/                Data models for QML
+│   │   ├── BookListModel         Book list (QAbstractListModel)
+│   │   └── BookProxyModel        Search, filter, sort (QSortFilterProxyModel)
+│   └── services/              Data access
+│       ├── BookTable             DAO: CRUD + isbnExists
+│       └── BookDTO               Data struct + toMap/fromMap
 ├── qml/                    QML user interface
 │   ├── Main.qml               Root ApplicationWindow + Loader
-│   ├── views/                 Full-screen pages
-│   │   ├── BookListPage          Book list + search + delete dialog
-│   │   ├── BookEditPage          Add/edit form with validation
-│   │   └── BookListView          ListView with BookCard delegates
-│   ├── components/            Reusable UI components
-│   │   ├── BookCard              Book display card with edit/delete
-│   │   └── SearchBar             Debounced search input
-│   ├── library/               Generic UI primitives
-│   │   ├── PageTemplate          Scrollable page container
-│   │   ├── Panel                 Titled card container
-│   │   ├── Icon                  Icon/badge element
-│   │   ├── ImageTextButton       Vertical icon + text button
-│   │   └── TextIconRow           Horizontal text + icon row
+│   ├── pages/                 Page-scoped modules
+│   │   ├── booklist/             Book list page
+│   │   │   ├── BookListPage        Main page layout
+│   │   │   ├── BookListView        ListView + delegate + empty state
+│   │   │   ├── BookCard            Book item delegate
+│   │   │   ├── SearchBar           Debounced search input
+│   │   │   ├── SortBar             Sort field + asc/desc toggle
+│   │   │   ├── ErrorBanner         Error message banner
+│   │   │   └── DeleteBookDialog    Delete confirmation dialog
+│   │   └── bookedit/             Book edit/add page
+│   │       ├── BookEditPage        Form page layout
+│   │       ├── BookForm            Form fields container
+│   │       └── FormField           Reusable label + input component
 │   └── utils/                 QML singletons
-│       ├── Geometry              Layout metrics and sizing
-│       └── Styles                Color palette
+│       ├── Geometry              Spacing, radius, font scale tokens
+│       └── Styles                Color palette, opacity tokens
+├── tests/                  Unit and integration tests (Qt Test)
+│   ├── tst_SqlQueryBuilder      Query builder tests
+│   ├── tst_BookDTO              DTO mapping tests
+│   ├── tst_NavigationController Navigation stack tests
+│   ├── tst_BookTable            DB integration tests (in-memory SQLite)
+│   ├── tst_BookFormController   Form validation/submit tests
+│   └── tst_BookProxyModel       Filter + sort tests
 ├── db/                     SQL scripts
 │   ├── init.sql               Schema: books table + indexes
-│   ├── test_data.sql          20 sample books
+│   ├── test_data.sql          Sample books (debug builds only)
 │   └── db_scripts.qrc        Qt resource manifest
-├── tests/                  Unit and integration tests (Qt Test)
+├── assets/                 Application assets
+│   ├── icon.ico               Application icon
+│   └── app.rc                 Windows resource file
 ├── docs/                   Documentation
-├── ai_context/             AI assistance context files
-├── buildtools/             Python build system (CLI, providers, commands)
+├── buildtools/             Python build system
 ├── installer/              Inno Setup script and qt.conf
-├── CMakeLists.txt          CMake project configuration
-├── CMakePresets.json        Debug/Release build presets
-├── vcpkg.json              vcpkg dependency manifest
+├── CMakeLists.txt          CMake configuration
+├── CMakePresets.json        Debug/Release presets
+├── vcpkg.json              vcpkg dependencies
 └── bootstrap.py            Build entry point
 ```
 
@@ -71,17 +82,23 @@ BeeLibrary/
 ```
 ┌─────────────────────────────────────────┐
 │               QML UI Layer              │
-│  views/  components/  library/  utils/  │
+│         pages/  utils/                  │
 └──────────────────┬──────────────────────┘
-                   │  property bindings, Q_INVOKABLE calls
+                   │  context properties, Q_INVOKABLE calls
 ┌──────────────────┴──────────────────────┐
-│             C++ Models Layer            │
-│            src/models/                  │
-│   BookListModel — CRUD + validation     │
-│   BookProxyModel — search/filter        │
-│   ContextModel — page navigation        │
+│          C++ Controllers Layer          │
+│          src/controllers/               │
+│   BookFormController — form logic       │
+│   NavigationController — page navigation│
 └──────────────────┬──────────────────────┘
-                   │  method calls
+                   │
+┌──────────────────┴──────────────────────┐
+│            C++ Models Layer             │
+│            src/models/                  │
+│   BookListModel — data for ListView     │
+│   BookProxyModel — search/filter/sort   │
+└──────────────────┬──────────────────────┘
+                   │
 ┌──────────────────┴──────────────────────┐
 │           C++ Services Layer            │
 │           src/services/                 │
@@ -92,88 +109,106 @@ BeeLibrary/
 ┌──────────────────┴──────────────────────┐
 │              C++ Core Layer             │
 │              src/core/                  │
-│   AppInitializer — startup chain        │
+│   AppInitializer — startup, DI          │
 │   AppEnvironment — paths, logging       │
 │   DatabaseManager — SQLite operations   │
 │   SqlQueryBuilder — fluent SQL builder  │
 └─────────────────────────────────────────┘
 ```
 
-## Data Flow
+## C++ / QML Integration
 
-1. **QML** binds to properties and roles exposed by **Models**.
-2. **Models** call **Services** to load, save, or transform data.
-3. **Services** handle persistence (SQLite) via **Core** infrastructure.
-4. **Core** provides database access, SQL building, and app configuration.
+C++ types are exposed to QML via context properties set in `AppInitializer::registerQmlTypes()`:
 
-Changes propagate upward through Qt's signal/slot mechanism: a Service modifies data, the Model calls `beginResetModel()`/`endResetModel()`, and QML reacts automatically via property bindings.
+| Context property      | C++ class            | Purpose                        |
+|-----------------------|----------------------|--------------------------------|
+| `bookListModel`       | BookListModel        | Book list data + delete        |
+| `bookProxyModel`      | BookProxyModel       | Search, filter, sort           |
+| `bookFormController`  | BookFormController   | Form submit, validation, state |
+| `navigationController`| NavigationController | Page navigation                |
 
-## Namespaces
+Enum access via `qmlRegisterUncreatableType`: `BookListModel.TitleRole`, `NavigationController.BOOK_EDIT_PAGE`.
 
-| Directory | Namespace | Purpose |
-|-----------|-----------|---------|
-| src/core/ | `bl::core` | Infrastructure, shared types |
-| src/services/ | `bl::services` | Data access, DTOs |
-| src/models/ | `bl::models` | QML-exposed models |
+Signal wiring in AppInitializer: `bookFormController::bookSaved → bookListModel::refresh`.
 
 ## Page Navigation
 
-ContextModel manages a page stack with hierarchy levels:
+NavigationController manages a page stack with hierarchy levels:
 - Level 1: BookListPage (home)
-- Level 2: BookEditPage (child of list)
+- Level 2: BookEditPage (child)
 
-Navigation: `contextModel.currentPage = ContextModel.BOOK_EDIT_PAGE`
-Back: `contextModel.openPreviousPage()` (pops stack)
-Page loading: `Main.qml` has a Loader bound to `contextModel.currentPagePath` (QUrl).
+```qml
+navigationController.currentPage = NavigationController.BOOK_EDIT_PAGE
+navigationController.goBack()
+```
 
-Inter-page data passes through `ApplicationWindow.window.editBookId`.
+Main.qml uses a Loader bound to `navigationController.currentPagePath`.
 
-## QML Module
+## DatabaseManager API
 
-All QML files belong to a single module with URI `Library`. The module is registered in CMake via `qt_add_qml_module`. Singletons (`Geometry`, `Styles`) are marked with `QT_QML_SINGLETON_TYPE TRUE`.
-
-New QML files placed in `qml/` are auto-discovered by CMake's `GLOB_RECURSE`.
-
-## C++ / QML Integration
-
-C++ types are exposed to QML via context properties set in `AppInitializer::exposeToQml()`:
-- `bookListModel` — BookListModel (CRUD operations)
-- `bookProxyModel` — BookProxyModel (search/filter for ListView)
-- `contextModel` — ContextModel (page navigation)
-
-ContextModel's `PageEnum` is available in QML via `qmlRegisterUncreatableType`.
+| Method                  | Returns          | Transaction | Use case          |
+|-------------------------|------------------|-------------|-------------------|
+| `select(builder)`       | `QList<QVariantMap>` | No      | SELECT queries    |
+| `execute(builder)`      | `int` (affected rows) | Yes   | UPDATE, DELETE    |
+| `insert(builder)`       | `qint64` (last ID)   | Yes   | INSERT            |
+| `exec(sql)`             | `bool`           | Yes         | Raw SQL, scripts  |
 
 ## Validation Strategy
 
-- **QML side**: Input correctness — disable Save when required fields empty, IntValidator for year, RegularExpressionValidator for ISBN digits
-- **C++ side**: Business rules — title/author required, year range, ISBN uniqueness via DB query
-- **SQL side**: Safety net — NOT NULL constraints, UNIQUE index on isbn
+- **QML**: Input correctness — disable Save when required fields empty, IntValidator for year, RegularExpressionValidator for ISBN digits
+- **C++ (BookFormController)**: Business rules — title/author required, year range (1..current year), ISBN uniqueness via DB query
+- **SQL**: Safety net — NOT NULL constraints, UNIQUE index on isbn
 
 ## Logging
 
 Qt logging categories by layer:
-- `bl.core.db` — database operations
-- `bl.core.init` — initialization steps
-- `bl.core.env` — environment/paths
-- `bl.services.books` — BookTable CRUD
-- `bl.models.books` — BookListModel operations
-- `bl.models.context` — page navigation
 
-Debug: all logs enabled (console + file). Release: `bl.*` disabled.
+| Category                  | Source               |
+|---------------------------|----------------------|
+| `bl.core.db`              | DatabaseManager      |
+| `bl.core.init`            | AppInitializer       |
+| `bl.core.env`             | AppEnvironment       |
+| `bl.services.books`       | BookTable            |
+| `bl.models.books`         | BookListModel        |
+| `bl.controllers.bookform` | BookFormController   |
+| `bl.controllers.navigation` | NavigationController |
+
+Debug: all logs to console + file. Release: only warnings and above to file.
+Log files auto-rotate (files older than 7 days deleted on startup).
 
 ## Build System
 
-The Python-based `bootstrap.py` wraps CMake and vcpkg:
+| Command                                    | Description                    |
+|--------------------------------------------|--------------------------------|
+| `python bootstrap.py bootstrap`            | Install deps, configure        |
+| `python bootstrap.py bootstrap -DVAR=VAL`  | Configure with CMake flags     |
+| `python bootstrap.py compile`              | Build (Debug by default)       |
+| `python bootstrap.py run`                  | Run with correct env           |
+| `python bootstrap.py test`                 | Run unit tests                 |
+| `python bootstrap.py package`              | Create Windows installer       |
+| `python bootstrap.py format`               | Format C++ with clang-format   |
+| `python bootstrap.py clean`                | Remove all build artifacts     |
 
-| Command                            | Description                  |
-|------------------------------------|------------------------------|
-| `python bootstrap.py bootstrap`    | Install deps, configure      |
-| `python bootstrap.py compile`      | Build (Debug by default)     |
-| `python bootstrap.py run`          | Run the built executable     |
-| `python bootstrap.py package`      | Create Windows installer     |
-| `python bootstrap.py clean`        | Remove all build artifacts   |
+Add `--release` to `bootstrap`, `compile`, `run`, or `test` for Release builds.
 
-Add `--release` to `bootstrap`, `compile`, or `run` for a Release build.
+## CMake Targets
+
+| Target           | Type            | Links to            |
+|------------------|-----------------|----------------------|
+| `BeeLibraryCore` | Static library  | Qt6::Core, Qt6::Sql  |
+| `BeeLibrary`     | Executable      | BeeLibraryCore, Qt6::Quick |
+| `tst_*`          | Test executables | BeeLibraryCore, Qt6::Test  |
+
+Tests are controlled by `BUILD_TESTS` option (ON by default, `-DBUILD_TESTS=OFF` to disable).
+
+## Namespaces
+
+| Directory         | Namespace          | Purpose              |
+|-------------------|--------------------|----------------------|
+| src/core/         | `bl::core`         | Infrastructure       |
+| src/services/     | `bl::services`     | Data access, DTOs    |
+| src/models/       | `bl::models`       | QML data models      |
+| src/controllers/  | `bl::controllers`  | Application logic    |
 
 ## Dependencies
 

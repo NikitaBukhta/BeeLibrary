@@ -26,7 +26,7 @@ PageTemplate {
                 text: qsTr("+ Add Book")
                 onClicked: {
                     bookFormController.currentBookId = 0
-                    contextModel.navigateTo(ContextModel.BOOK_EDIT_PAGE)
+                    navigationController.currentPage = NavigationController.BOOK_EDIT_PAGE
                 }
             }
         }
@@ -58,7 +58,7 @@ PageTemplate {
 
             onEditRequested: (bookId) => {
                 bookFormController.currentBookId = bookId
-                contextModel.navigateTo(ContextModel.BOOK_EDIT_PAGE)
+                navigationController.currentPage = NavigationController.BOOK_EDIT_PAGE
             }
 
             onDeleteRequested: (bookId, title) => {

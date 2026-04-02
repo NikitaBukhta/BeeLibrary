@@ -2,7 +2,7 @@
 #include "AppEnvironment.hpp"
 #include "DatabaseManager.hpp"
 #include "controllers/BookFormController.hpp"
-#include "controllers/ContextModel.hpp"
+#include "controllers/NavigationController.hpp"
 #include "models/BookListModel.hpp"
 #include "models/BookProxyModel.hpp"
 
@@ -66,7 +66,7 @@ void AppInitializer::initModels() {
   connect(_bookFormController, &controllers::BookFormController::bookSaved,
           _bookListModel, &models::BookListModel::refresh);
 
-  _contextModel = new controllers::ContextModel(this);
+  _contextModel = new controllers::NavigationController(this);
 
   qCInfo(lcInit) << "Models ready";
 }
@@ -81,9 +81,10 @@ void AppInitializer::registerQmlTypes() {
   _engine->rootContext()->setContextProperty("bookFormController",
                                              _bookFormController);
 
-  _engine->rootContext()->setContextProperty("contextModel", _contextModel);
-  qmlRegisterUncreatableType<controllers::ContextModel>("Library", 1, 0,
-                                                        "ContextModel", "");
+  _engine->rootContext()->setContextProperty("navigationController",
+                                             _contextModel);
+  qmlRegisterUncreatableType<controllers::NavigationController>(
+      "Library", 1, 0, "NavigationController", "");
 
   QObject::connect(
       _engine.get(), &QQmlApplicationEngine::objectCreationFailed, &_app,

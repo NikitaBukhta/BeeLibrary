@@ -1,17 +1,17 @@
-#include "ContextModel.hpp"
+#include "NavigationController.hpp"
 
 #include <QLoggingCategory>
 
-Q_LOGGING_CATEGORY(lcContext, "bl.controllers.context")
+Q_LOGGING_CATEGORY(lcNavigation, "bl.controllers.navigation")
 
 namespace bl::controllers {
 
-ContextModel::ContextModel(QObject *parent) : QObject(parent) {
-  navigateTo(PageEnum::BOOK_LIST_PAGE);
-  qCInfo(lcContext) << "ContextModel initialized";
+NavigationController::NavigationController(QObject *parent) : QObject(parent) {
+  setCurrentPage(PageEnum::BOOK_LIST_PAGE);
+  qCInfo(lcNavigation) << "NavigationController initialized";
 }
 
-ContextModel::PageInfo ContextModel::pageInfo(PageEnum page) {
+NavigationController::PageInfo NavigationController::pageInfo(PageEnum page) {
   switch (page) {
   case PageEnum::BOOK_LIST_PAGE:
     return {QUrl{u"qrc:/qt/qml/Library/pages/booklist/BookListPage.qml"_qs}, 1};
@@ -21,19 +21,19 @@ ContextModel::PageInfo ContextModel::pageInfo(PageEnum page) {
   Q_UNREACHABLE();
 }
 
-QUrl ContextModel::currentPagePath() const {
+QUrl NavigationController::currentPagePath() const {
   if (_pageStack.empty())
     return {};
   return pageInfo(_pageStack.top()).url;
 }
 
-ContextModel::PageEnum ContextModel::currentPage() const {
+NavigationController::PageEnum NavigationController::currentPage() const {
   if (_pageStack.empty())
     return PageEnum::BOOK_LIST_PAGE;
   return _pageStack.top();
 }
 
-void ContextModel::navigateTo(PageEnum page) {
+void NavigationController::setCurrentPage(PageEnum page) {
   if (!_pageStack.empty() && _pageStack.top() == page)
     return;
 
@@ -45,18 +45,18 @@ void ContextModel::navigateTo(PageEnum page) {
   }
 
   _pageStack.push(page);
-  qCInfo(lcContext) << "Page changed:" << target.url
-                    << "(stack size:" << _pageStack.size() << ")";
+  qCInfo(lcNavigation) << "Page changed:" << target.url
+                       << "(stack size:" << _pageStack.size() << ")";
   emit currentPageChanged();
 }
 
-void ContextModel::goBack() {
+void NavigationController::goBack() {
   if (_pageStack.size() <= 1)
     return;
 
   _pageStack.pop();
-  qCInfo(lcContext) << "Navigated back to:" << pageInfo(_pageStack.top()).url
-                    << "(stack size:" << _pageStack.size() << ")";
+  qCInfo(lcNavigation) << "Navigated back to:" << pageInfo(_pageStack.top()).url
+                       << "(stack size:" << _pageStack.size() << ")";
   emit currentPageChanged();
 }
 

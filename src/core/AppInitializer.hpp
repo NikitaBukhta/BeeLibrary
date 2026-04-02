@@ -18,7 +18,7 @@ class BookProxyModel;
 
 namespace bl::controllers {
 class BookFormController;
-class ContextModel;
+class NavigationController;
 } // namespace bl::controllers
 
 namespace bl::core {
@@ -48,7 +48,7 @@ private:
   models::BookListModel *_bookListModel;
   models::BookProxyModel *_bookProxyModel;
   controllers::BookFormController *_bookFormController;
-  controllers::ContextModel *_contextModel;
+  controllers::NavigationController *_contextModel;
 };
 
 } // namespace bl::core

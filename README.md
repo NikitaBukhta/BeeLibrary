@@ -1,6 +1,6 @@
 # BeeLibrary
 
-Qt 6.8 QML desktop application.
+Qt 6.8 QML desktop application for managing a personal book library.
 
 ## Prerequisites
 
@@ -24,6 +24,20 @@ Use `--release` for a release build:
 python bootstrap.py bootstrap --release
 python bootstrap.py compile --release
 python bootstrap.py run --release
+```
+
+## Tests
+
+```bash
+python bootstrap.py test
+```
+
+## CMake Flags
+
+Pass CMake variables via `-D` during bootstrap:
+
+```bash
+python bootstrap.py bootstrap -DBUILD_TESTS=OFF
 ```
 
 ## Create Installer

@@ -10,7 +10,7 @@ PageTemplate {
     property string validationMessage: ""
 
     function goBack() {
-        contextModel.goBack()
+        navigationController.goBack()
     }
 
     function tryAccept() {

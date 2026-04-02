@@ -14,6 +14,6 @@ ApplicationWindow {
     Loader {
         id: pageLoader
         anchors.fill: parent
-        source: contextModel.currentPagePath
+        source: navigationController.currentPagePath
     }
 }

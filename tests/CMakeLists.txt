@@ -10,7 +10,7 @@ endfunction()
 
 add_unit_test(tst_SqlQueryBuilder)
 add_unit_test(tst_BookDTO)
-add_unit_test(tst_ContextModel)
+add_unit_test(tst_NavigationController)
 add_unit_test(tst_BookTable)
 add_unit_test(tst_BookFormController)
 add_unit_test(tst_BookProxyModel)
