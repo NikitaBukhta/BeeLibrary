@@ -33,6 +33,7 @@ qt_add_executable(BeeLibrary
     src/main.cpp
     src/core/AppInitializer.cpp
     src/core/AppInitializer.hpp
+    assets/app.rc
 )
 target_link_libraries(BeeLibrary PRIVATE BeeLibraryCore Qt6::Quick)
 

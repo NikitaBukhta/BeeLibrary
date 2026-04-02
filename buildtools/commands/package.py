@@ -9,7 +9,7 @@ from buildtools.shell import Shell
 APP_NAME = "BeeLibrary"
 
 # Qt plugins needed at runtime (subdirs of Qt6/plugins/)
-QT_PLUGIN_DIRS = ["platforms", "imageformats", "iconengines", "styles", "tls"]
+QT_PLUGIN_DIRS = ["platforms", "sqldrivers", "imageformats", "iconengines", "styles", "tls"]
 
 # QML modules needed at runtime (subdirs of Qt6/qml/)
 QT_QML_DIRS = ["QtCore", "QtQml", "QtQuick"]
