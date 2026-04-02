@@ -11,11 +11,30 @@ find_package(Qt6 REQUIRED COMPONENTS Quick Sql)
 qt_standard_project_setup(REQUIRES 6.8)
 
 # ---------------------------------------------------------------------------
-# Sources
+# Core library (shared between app and tests)
 # ---------------------------------------------------------------------------
-file(GLOB_RECURSE CPP_SOURCES CONFIGURE_DEPENDS src/*.cpp src/*.hpp)
+file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS
+    src/core/AppEnvironment.cpp src/core/AppEnvironment.hpp
+    src/core/DatabaseManager.cpp src/core/DatabaseManager.hpp
+    src/core/SqlQueryBuilder.cpp src/core/SqlQueryBuilder.hpp
+    src/services/*.cpp src/services/*.hpp
+    src/models/*.cpp src/models/*.hpp
+    src/controllers/*.cpp src/controllers/*.hpp
+)
 
-qt_add_executable(BeeLibrary ${CPP_SOURCES})
+add_library(BeeLibraryCore STATIC ${LIB_SOURCES})
+target_include_directories(BeeLibraryCore PUBLIC src src/models src/controllers src/core src/services)
+target_link_libraries(BeeLibraryCore PUBLIC Qt6::Core Qt6::Sql)
+
+# ---------------------------------------------------------------------------
+# Executable
+# ---------------------------------------------------------------------------
+qt_add_executable(BeeLibrary
+    src/main.cpp
+    src/core/AppInitializer.cpp
+    src/core/AppInitializer.hpp
+)
+target_link_libraries(BeeLibrary PRIVATE BeeLibraryCore Qt6::Quick)
 
 # ---------------------------------------------------------------------------
 # QML module
@@ -46,11 +65,14 @@ set_target_properties(BeeLibrary PROPERTIES
     WIN32_EXECUTABLE $<NOT:$<CONFIG:Debug>>
 )
 
-target_include_directories(BeeLibrary PRIVATE src src/models src/controllers src/core src/services)
-
-target_link_libraries(BeeLibrary
-    PRIVATE Qt6::Quick Qt6::Sql
-)
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+option(BUILD_TESTS "Build unit tests" ON)
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 # ---------------------------------------------------------------------------
 # Install

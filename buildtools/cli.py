@@ -12,6 +12,7 @@ from buildtools.commands import (
     HelpCommand,
     PackageCommand,
     RunCommand,
+    TestCommand,
 )
 from buildtools.config import ProjectConfig
 from buildtools.errors import BuildError, ToolNotFoundError
@@ -54,6 +55,7 @@ class CommandRegistry:
                 self.config, self.shell, self._clang_format,
             ),
             "run": RunCommand(self.config),
+            "test": TestCommand(self.config),
             "package": PackageCommand(self.config, self.shell),
             "clean": CleanCommand(self.config),
         }
@@ -89,10 +91,15 @@ class CLI:
 
         subs = self.parser.add_subparsers(dest="command")
 
-        subs.add_parser(
+        p_bootstrap = subs.add_parser(
             "bootstrap", parents=[help_parser, release_parser],
             add_help=False,
             help="Install dependencies and configure",
+        )
+        p_bootstrap.add_argument(
+            "-D", dest="cmake_defs", action="append", default=[],
+            metavar="VAR=VALUE",
+            help="Pass CMake cache variable (e.g. -DBUILD_TESTS=OFF)",
         )
 
         p_compile = subs.add_parser(
@@ -115,6 +122,12 @@ class CLI:
             "package", parents=[help_parser],
             add_help=False,
             help="Create installer (Inno Setup)",
+        )
+
+        subs.add_parser(
+            "test", parents=[help_parser, release_parser],
+            add_help=False,
+            help="Run unit tests",
         )
 
         subs.add_parser(
@@ -144,6 +157,9 @@ class CLI:
         jobs = getattr(args, "jobs", None)
         if jobs is not None:
             kwargs["jobs"] = jobs
+        cmake_defs = getattr(args, "cmake_defs", None)
+        if cmake_defs:
+            kwargs["cmake_defs"] = cmake_defs
         config = ProjectConfig(**kwargs)
         command_name = args.command or "help"
         registry = CommandRegistry(config)

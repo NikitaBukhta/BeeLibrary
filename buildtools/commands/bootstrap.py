@@ -30,11 +30,14 @@ class BootstrapCommand(Command):
         self.clang_format.ensure_config()
 
         print(f"\n=== Configuring ({self.config.build_type}) ===")
-        self.shell.run([
+        cmake_cmd = [
             cmake_path,
             "--preset", self.config.cmake_preset,
             "-S", self.config.project_dir,
-        ])
+        ]
+        for d in self.config.cmake_defs:
+            cmake_cmd.append(f"-D{d}")
+        self.shell.run(cmake_cmd)
 
         print("\nBootstrap complete.")
         print(f"  Dependencies : {self.config.deps_dir}")

@@ -8,6 +8,8 @@ from buildtools.commands.format import FormatCommand
 from buildtools.commands.help import HelpCommand
 from buildtools.commands.package import PackageCommand
 from buildtools.commands.run import RunCommand
+from buildtools.commands.test import TestCommand
 
 __all__ = ["Command", "BootstrapCommand", "CleanCommand", "CompileCommand",
-           "FormatCommand", "HelpCommand", "PackageCommand", "RunCommand"]
+           "FormatCommand", "HelpCommand", "PackageCommand", "RunCommand",
+           "TestCommand"]
